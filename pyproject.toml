@@ -1,0 +1,28 @@
+[project]
+name = "jeffe"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pandas>=2.2.3",
+    "requests>=2.32.3",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.28.1",
+    "ruff>=0.9.9",
+]
+
+[tool.basedpyright]
+reportAny = false
+reportExplicitAny = false
+reportPrivateUsage = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportMissingTypeStubs = false
+
+[tool.ruff]
+line-length = 100
