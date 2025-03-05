@@ -1,11 +1,14 @@
 import requests
 import pandas as pd
+import logging
 import concurrent.futures as cf
 from datetime import datetime
 from typing import Any
 
+logger = logging.getLogger(__name__)
 
-def create_file_name() -> str:
+
+def get_log_file_name() -> str:
     """Opens results txt file and assigns name appending the current time. File will keep a log of transactions"""
     ts = datetime.now()
     base_path = r".\logs\policyCancellationLogs_"
@@ -48,7 +51,7 @@ def results_csv_creation(results_success: pd.DataFrame, results_failure: pd.Data
     print(failure_file_name)
 
 
-def assign_variables(in_file: str, out_file: str):
+def assign_variables(in_file: str):
     """Creates pandas dataframe using the a csv spreadsheet named LDPolicyExport.csv in the same directory.
     Iterates through all rows in the sheet, calls on sendRequest()
 
@@ -61,11 +64,10 @@ def assign_variables(in_file: str, out_file: str):
     """
 
     print("Begin extracting csv data.")
-    resultsSuccess = pd.DataFrame({"Success": [], "Response": [], "Content": []})
-    resultsFailure = pd.DataFrame({"Failure": [], "Response": [], "Content": []})
+    results_success = pd.DataFrame({"Success": [], "Response": [], "Content": []})
+    results_failure = pd.DataFrame({"Failure": [], "Response": [], "Content": []})
 
     extract_df = pd.read_csv(in_file, keep_default_na=False)
-    out_file = out_file
 
     req_future: list[cf.Future[requests.Response]] = []
     future_args: list[str] = []
@@ -77,16 +79,14 @@ def assign_variables(in_file: str, out_file: str):
         day = period_start[1]
         year = period_start[2]
 
-        with open(out_file, "w") as f:
-            _ = f.write("-" * 20 + "\n")
-            if policy_number == "":
-                policy_number = str(999999999)
-                print("No POLICYNUMBER in provided csv file, setting policyNumber to 99999999")
-                _ = f.write(
-                    "No POLICYNUMBER in provided csv file, setting policyNumber to 99999999" + "\n"
-                )
-            out_string = f"{str(policy_number)}\n{str(period_start)}\n month:{str(month)} day:{str(day)} year:{str(year)}\n{str(datetime.now())}\n"
-            _ = f.write(out_string)
+        logger.info("-" * 20)
+        if policy_number == "":
+            policy_number = str(999999999)
+            print("No POLICYNUMBER in provided csv file, setting policyNumber to 99999999")
+            logger.warning("No POLICYNUMBER in provided csv file, setting policyNumber to 99999999")
+        logger.info(
+            f"{str(policy_number)}\n{str(period_start)}\n month:{str(month)} day:{str(day)} year:{str(year)}\n{str(datetime.now())}"
+        )
 
         print("policyNumber " + str(policy_number))
         print("day " + str(day))
@@ -95,7 +95,7 @@ def assign_variables(in_file: str, out_file: str):
         print(datetime.now())
 
         with cf.ThreadPoolExecutor(8) as exe:
-            req_future.append(exe.submit(send_request, policy_number, year, month, day, out_file))
+            req_future.append(exe.submit(send_request, policy_number, year, month, day))
             future_args.append(policy_number)
 
     for future, policy_number in zip(req_future, future_args):
@@ -105,16 +105,16 @@ def assign_variables(in_file: str, out_file: str):
             content = rawResponse.content
             future.__dir__
             if str(response) == "<Response [200]>":
-                success_df(resultsSuccess, policy_number, response, content)
+                success_df(results_success, policy_number, response, content)
             else:
-                failure_df(resultsFailure, policy_number, response, content)
+                failure_df(results_failure, policy_number, response, content)
             pass
         except Exception as e:
             print(f"Exception occurred during request {e}")
-    results_csv_creation(resultsSuccess, resultsFailure)
+    results_csv_creation(results_success, results_failure)
 
 
-def send_request(policy_number: str, year: str, month: str, day: str, file: str):
+def send_request(policy_number: str, year: str, month: str, day: str):
     """Using Requests module, send Post request as defined.
 
     policyNumber, year, month, day, and file are provided by assignVariables(), which are then inserted into the JSON body under the Payload.
@@ -138,19 +138,17 @@ def send_request(policy_number: str, year: str, month: str, day: str, file: str)
     print(str(response))
     print(str(response.elapsed.total_seconds()) + "\n")
 
-    with open(file, "w") as f:
-        _ = f.write(str(response) + "\n")
-        if str(response) != "<Response [200]>":
-            print(str(content) + "\n")
-            _ = f.write(str(content) + "\n" + "\n")
+    logger.info(str(response))
+    if str(response) != "<Response [200]>":
+        print(str(content) + "\n")
     return response
 
 
 def main():
-    filename = create_file_name()
-    assign_variables(filename, "LDPolicyExport.csv")
+    logging.basicConfig(filename=get_log_file_name(), level=logging.INFO)
+    assign_variables("LDPolicyExport.csv")
     time = datetime.now()
-    print("************************Run completed" + "_" + str(time))
+    logger.info("************************Run completed" + "_" + str(time))
 
 
 if __name__ == "__main__":
