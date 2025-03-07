@@ -72,29 +72,31 @@ def assign_variables(in_file: str):
     req_future: list[cf.Future[requests.Response]] = []
     future_args: list[str] = []
 
-    for index, _ in extract_df.iterrows():
-        policy_number = extract_df.loc[index, "POLICYNUMBER"]
-        period_start = extract_df.loc[index, "PERIODSTART"].split(r"/")
-        month = period_start[0]
-        day = period_start[1]
-        year = period_start[2]
+    with cf.ThreadPoolExecutor(8) as exe:
+        for index, _ in extract_df.iterrows():
+            policy_number = extract_df.loc[index, "POLICYNUMBER"]
+            period_start = extract_df.loc[index, "PERIODSTART"].split(r"/")
+            month = period_start[0]
+            day = period_start[1]
+            year = period_start[2]
 
-        logger.info("-" * 20)
-        if policy_number == "":
-            policy_number = str(999999999)
-            print("No POLICYNUMBER in provided csv file, setting policyNumber to 99999999")
-            logger.warning("No POLICYNUMBER in provided csv file, setting policyNumber to 99999999")
-        logger.info(
-            f"{str(policy_number)}\n{str(period_start)}\n month:{str(month)} day:{str(day)} year:{str(year)}\n{str(datetime.now())}"
-        )
+            logger.info("-" * 20)
+            if policy_number == "":
+                policy_number = str(999999999)
+                print("No POLICYNUMBER in provided csv file, setting policyNumber to 99999999")
+                logger.warning(
+                    "No POLICYNUMBER in provided csv file, setting policyNumber to 99999999"
+                )
+            logger.info(
+                f"{str(policy_number)}\n{str(period_start)}\n month:{str(month)} day:{str(day)} year:{str(year)}\n{str(datetime.now())}"
+            )
 
-        print("policyNumber " + str(policy_number))
-        print("day " + str(day))
-        print("month " + str(month))
-        print("year " + str(year))
-        print(datetime.now())
+            print("policyNumber " + str(policy_number))
+            print("day " + str(day))
+            print("month " + str(month))
+            print("year " + str(year))
+            print(datetime.now())
 
-        with cf.ThreadPoolExecutor(8) as exe:
             req_future.append(exe.submit(send_request, policy_number, year, month, day))
             future_args.append(policy_number)
 
